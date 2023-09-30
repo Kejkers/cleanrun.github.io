@@ -80,6 +80,7 @@ class BaseScene extends Phaser.Scene {
         topwall.setStatic(true);
         topwall.setFriction(0.005);
 
+        this.itemPickAndDrop.setPlayer(this.player);
         this.itemPickAndDrop.initItemPlaceholder();
 
         for (let i = 0; i < 50; i++) {
@@ -98,8 +99,7 @@ class BaseScene extends Phaser.Scene {
 
     update() {
         if (this.cursors.space.isDown) {
-            this.sys.game.destroy(true);
-            game = new Phaser.Game(config);
+            this.scene.start('pre');
         }
 
         const tdiff = this.timeSeconds - (this.time.now - this.time.startTime) / 1000;
@@ -218,22 +218,27 @@ class ItemPickAndDrop {
     itemOnPlaceholder;
     squarePos;
     canThrow; // ебаный костыль
+    player;
 
     static THROW_DELTA_POS = 100;
     static THROW_SPEED = 10;
     static SQUARE_POS_X = 0.9;
     static SQUARE_POS_Y = 0.05;
 
-    constructor(game, w, h) {
+    constructor(game, w, h, player) {
         this.game = game;
         this.squarePos = {
             x: w * ItemPickAndDrop.SQUARE_POS_X,
             y: h * ItemPickAndDrop.SQUARE_POS_Y
-        }
+        };
     }
 
     preloadAssets() {
         this.game.load.image('square', 'fg/square.png');
+    }
+
+    setPlayer(player) {
+        this.player = player;
     }
 
     initItemPlaceholder() {
@@ -249,7 +254,7 @@ class ItemPickAndDrop {
                 return;
             }
             if (!this.isPickedUp()) {
-                this.take(gameObject);
+                this.take(gameObject, this.player.x, this.player.y);
             }
         });
     }
@@ -267,7 +272,11 @@ class ItemPickAndDrop {
         }
     }
 
-    take(item) {
+    take(item, playerX, playerY) {
+        const distance = Math.sqrt((playerX - item.x) * (playerX - item.x) + (playerY - item.y) * (playerY - item.y));
+        if (distance > 100) {
+            return;
+        }
         let {x, y} = this.squarePos;
         this.itemOnPlaceholder = item;
         item.setStatic(true);
@@ -294,6 +303,7 @@ class ItemPickAndDrop {
     }
 
     isPickedUp() {
+        //     v wow so cool
         return !!this.itemOnPlaceholder;
     }
 }
