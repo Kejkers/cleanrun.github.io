@@ -1,0 +1,26 @@
+{
+  "dependencies": {
+    "http-server": "^14.1.1",
+    "npm-run": "^5.0.1"
+  },
+  "scripts": {
+    "start": "http-server"
+  },
+  "name": "cleanrun.github.io",
+  "version": "1.0.0",
+  "description": "ludum dare 54 game",
+  "main": "game.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kejkers/cleanrun.github.io.git"
+  },
+  "keywords": [
+    "game"
+  ],
+  "author": "khmhmm",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Kejkers/cleanrun.github.io/issues"
+  },
+  "homepage": "https://github.com/Kejkers/cleanrun.github.io#readme"
+}
