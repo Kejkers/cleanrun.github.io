@@ -18,20 +18,21 @@ class BaseScene extends Phaser.Scene
         this.load.image('bg', 'bg/room1.png');
         this.load.image('pl', 'fg/player.png');
         this.load.atlas('player_sheet', 'fg/player_sheet.png', 'fg/player_sheet.json');
-        this.load.image('red', 'fg/red.png');
+        this.load.image('redwall', 'fg/redwall.png');
+        this.load.image('trash', 'fg/trash.png');
     }
 
     create ()
     {
         this.cursors = this.input.keyboard.createCursorKeys();
-        this.speed = 2;
+        this.speed = 6;
         this.instantiate_objects();
     }
 
     instantiate_objects() {
         this.add.image(W / 2, H / 2, 'bg');
 
-        this.player = this.matter.add.sprite(400, 100, 'player_sheet');
+        this.player = this.matter.add.sprite(100, 400, 'player_sheet');
 
         this.player.setVelocity(0, 0);
         this.player.setBounce(1, 1);
@@ -51,35 +52,46 @@ class BaseScene extends Phaser.Scene
         });
         this.player.play('idle');
 
-        const logo2 = this.matter.add.image(400, 400, 'pl');
+        const trash = this.matter.add.image(400, 500, 'trash');
 
-        logo2.setBounce(1, 1);
-        // logo2.setCollideWorldBounds(true);
-        logo2.setStatic(true);
-        logo2.setFriction(0.005);
+        trash.setBounce(1, 1);
+        trash.setStatic(true);
+        trash.setFriction(0.005);
+
+        const topwall = this.matter.add.image(0, 0, 'redwall').setScale(30, 6);
+
+        topwall.setBounce(1, 1);
+        topwall.setStatic(true);
+        topwall.setFriction(0.005);
     }
 
     update ()
     {
+        this.player.rotation = 0;
         this.handle_controls();
     }
 
     handle_controls(player) {
+        let speed = (this.cursors.shift.isDown)? this.speed * 2 : this.speed;
+
+        let xmove = this.cursors.left.isDown || this.cursors.right.isDown;
+        let ymove = this.cursors.up.isDown || this.cursors.down.isDown;
+
         if (this.cursors.left.isDown) {
-            this.player.setVelocityX(-this.speed);
+            this.player.setVelocityX((ymove)? -speed / 1.5 : -speed);
             this.player.anims.play('go', true);
         } else if (this.cursors.right.isDown) {
-            this.player.setVelocityX(this.speed);
+            this.player.setVelocityX((ymove)? speed / 1.5 : speed);
             this.player.anims.play('go', true);
         } else {
             this.player.setVelocityX(0);
         }
 
         if (this.cursors.up.isDown) {
-            this.player.setVelocityY(-this.speed);
+            this.player.setVelocityY((xmove)? -speed / 1.5 : -speed);
             this.player.anims.play('go', true);
         } else if (this.cursors.down.isDown) {
-            this.player.setVelocityY(this.speed);
+            this.player.setVelocityY((xmove)? speed / 1.5 : speed);
             this.player.anims.play('go', true);
         } else {
             this.player.setVelocityY(0);
