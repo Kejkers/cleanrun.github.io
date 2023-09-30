@@ -19,7 +19,7 @@ class Example extends Phaser.Scene
     }
 
     instantiate_objects() {
-        this.add.image(0, 0, 'bg');
+        this.add.image(0, 0, 'bg').setOrigin(0, 0);
 
         const particles = this.add.particles(0, 0, 'red', {
             speed: 100,
