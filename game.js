@@ -96,6 +96,10 @@ class BaseScene extends Phaser.Scene
         } else {
             this.player.setVelocityY(0);
         }
+
+        if (!xmove && !ymove) {
+            this.player.anims.play('idle', true);
+        }
     }
 }
 
