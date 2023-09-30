@@ -5,12 +5,14 @@ class BaseScene extends Phaser.Scene
 {
     constructor ()
     {
-        super();
+        super({ key: 'basescene' });
     }
 
     player;
     cursors;
     speed;
+    timeSeconds;
+    timeText;
 
     preload ()
     {
@@ -27,6 +29,8 @@ class BaseScene extends Phaser.Scene
         this.cursors = this.input.keyboard.createCursorKeys();
         this.speed = 6;
         this.instantiate_objects();
+        this.timeSeconds = 90;
+        this.timeText = this.add.text(W / 2, 8, 'Timer felt asleep :<', { color: '#ffffff' });
     }
 
     instantiate_objects() {
@@ -67,8 +71,19 @@ class BaseScene extends Phaser.Scene
 
     update ()
     {
+        if (this.cursors.space.isDown) {
+            this.sys.game.destroy(true);
+            game = new Phaser.Game(config);
+        }
+
+        const tdiff = this.timeSeconds - (this.time.now - this.time.startTime) / 1000;
+        if (tdiff <= 0) {
+            return;
+        }
+
         this.player.rotation = 0;
         this.handle_controls();
+        this.upd_time(tdiff);
     }
 
     handle_controls(player) {
@@ -101,7 +116,53 @@ class BaseScene extends Phaser.Scene
             this.player.anims.play('idle', true);
         }
     }
+
+    upd_time(diff) {
+        let secondsLeft = Math.round(diff);
+        let minutesLeft = (secondsLeft >= 60)? Math.round(secondsLeft / 60) : 0;
+        let residSeconds = secondsLeft - minutesLeft * 60;
+        this.timeText.text = minutesLeft.toString() + ':' + ((residSeconds < 10)? '0' : '') + residSeconds.toString();
+    }
 }
+
+class Menu extends Phaser.Scene {
+    constructor ()
+    {
+        super({ key: 'menu' });
+    }
+
+    preload ()
+    {
+    }
+
+    create ()
+    {
+        this.add.text(W / 11, H / 8, 'Clean.run!!!', { color: '#ffffff' });
+        this.add.text(W / 11, H / 6, 'Ludum dare 54 game', { color: '#ffffff' });
+        this.add.text(W / 11, H / 4, 'Press any key to start', { color: '#ffffff' });
+        this.add.text(W / 11, H / 2, 'Press SPACE while playing to restart game', { color: '#ffffff' });
+        this.input.keyboard.on('keydown', this.start_game);
+    }
+
+    start_game() {
+        currentScene = 'basescene';
+        this.scene.scene.start(currentScene);
+    }
+}
+
+
+class PreLoader extends Phaser.Scene {
+    constructor ()
+    {
+        super({ key: 'pre' });
+    }
+
+    create()
+    {
+        this.scene.start(currentScene);
+    }
+}
+
 
 
 const config = {
@@ -117,7 +178,8 @@ const config = {
             }
         }
     },
-    scene: BaseScene
+    scene: [PreLoader, Menu, BaseScene]
 };
 
-const game = new Phaser.Game(config);
+let game = new Phaser.Game(config);
+let currentScene = 'menu';
