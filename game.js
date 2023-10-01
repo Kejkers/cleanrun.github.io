@@ -315,6 +315,11 @@ class BaseScene extends Phaser.Scene {
         if (!this.mutePressLock && this.input.keyboard.addKey('M').isDown) {
             this.mutePressLock = true;
             PLAYSOUND = !PLAYSOUND;
+            if (PLAYSOUND) {
+                this.sound.setVolume(65);
+            } else {
+                this.sound.setVolume(0);
+            }
         } else if (this.mutePressLock && this.input.keyboard.addKey('M').isUp) {
             this.mutePressLock = false;
         }
