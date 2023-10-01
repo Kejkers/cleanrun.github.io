@@ -11,14 +11,12 @@ function randomPos() {
     }
 }
 
-const maxTrash = 10;
-
 class BaseScene extends Phaser.Scene {
 
     itemPickAndDrop;
 
-    constructor() {
-        super({ key: 'basescene' });
+    constructor(key='basescene') {
+        super({ key: key });
         this.itemPickAndDrop = new ItemPickAndDrop(this, W, H);
     }
 
@@ -41,6 +39,9 @@ class BaseScene extends Phaser.Scene {
         this.load.image('window', 'fg/window.png');
         this.load.image('table', 'fg/table.png');
 
+        if (this.itemPickAndDrop === undefined) {
+            this.itemPickAndDrop = new ItemPickAndDrop(this, W, H);
+        }
         this.itemPickAndDrop.preloadAssets();
     }
 
@@ -48,14 +49,16 @@ class BaseScene extends Phaser.Scene {
         this.cursors = this.input.keyboard.createCursorKeys();
         this.speed = 6;
         this.itemPickAndDrop.initKeyboardAction();
-        this.instantiate_objects();
+        this.trashLeft = (this.trashLeft === undefined)? 50 : this.trashLeft;
+        this.instantiate_objects(this.trashLeft);
         this.timeSeconds = 90;
-        this.timeText = this.add.text(W / 2, 8, 'Timer felt asleep :<', { color: '#ffffff' });
+        this.timeText = this.add.text(W / 2, 8, 'Hurry up!', { color: '#ffffff' });
         this.add.text(50, 8, 'Press SPACE to restart', { color: '#ffffff' });
     }
 
-    instantiate_objects() {
-        this.trashLeft = maxTrash;
+    instantiate_objects(maxObjects=50) {
+        console.log(maxObjects);
+        this.trashLeft = maxObjects;
 
         this.add.image(W / 2, H / 2, 'bg');
 
@@ -74,26 +77,27 @@ class BaseScene extends Phaser.Scene {
             }
         });
 
-        this.player = this.matter.add.sprite(100, 400, 'player_sheet');
+        this.player = this.matter.add.sprite(100, 400, 'player_sheet').setScale(0.304878, 0.3);
 
         this.player.setVelocity(0, 0);
         this.player.setBounce(1, 1);
         this.player.name = "player";
         this.anims.create({
             key: 'idle',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 0, end: 0 }),
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 4, end: 4 }),
             frameRate: 10,
             duration: 1,
             repeat: -1
         });
         this.anims.create({
             key: 'go',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 0, end: 3 }),
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 0, end: 5 }),
             frameRate: 10,
             duration: 4,
             repeat: -1
         });
         this.player.play('idle');
+        this.player.lookLeft = true;
 
         const topwall = this.matter.add.image(EXTRA_BOUNDS_SIZE, 0, 'transparent').setScale(W + EXTRA_BOUNDS_SIZE, 190);
 
@@ -127,7 +131,7 @@ class BaseScene extends Phaser.Scene {
         table.setStatic(true);
         table.setFriction(0.005);
 
-        for (let i = 0; i < maxTrash; i++) {
+        for (let i = 0; i < maxObjects; i++) {
             this.createRubbish(randomPos(), 'socks');
         }
     }
@@ -143,6 +147,7 @@ class BaseScene extends Phaser.Scene {
 
     update() {
         if (this.cursors.space.isDown) {
+            this.trashLeft = 50;
             this.scene.start('pre');
         }
 
@@ -163,26 +168,34 @@ class BaseScene extends Phaser.Scene {
 
     }
 
-    handle_controls(player) {
+    handle_controls() {
         let speed = (this.cursors.shift.isDown) ? this.speed * 2 : this.speed;
 
-        let xmove = this.cursors.left.isDown || this.cursors.right.isDown;
-        let ymove = this.cursors.up.isDown || this.cursors.down.isDown;
+        let xmove = this.cursors.left.isDown || this.cursors.right.isDown || this.input.keyboard.addKey('A').isDown || this.input.keyboard.addKey('D').isDown;
+        let ymove = this.cursors.up.isDown || this.cursors.down.isDown || this.input.keyboard.addKey('W').isDown || this.input.keyboard.addKey('S').isDown;
 
-        if (this.cursors.left.isDown) {
+        if (this.cursors.left.isDown || this.input.keyboard.addKey('A').isDown) {
             this.player.setVelocityX((ymove)? -speed / 1.5 : -speed);
             this.player.anims.play('go', true);
-        } else if (this.cursors.right.isDown) {
+            if (!this.player.lookLeft) {
+                this.player.lookLeft = true;
+                this.player.setFlipX(false);
+            }
+        } else if (this.cursors.right.isDown || this.input.keyboard.addKey('D').isDown) {
             this.player.setVelocityX((ymove)? speed / 1.5 : speed);
             this.player.anims.play('go', true);
+            if (this.player.lookLeft) {
+                this.player.lookLeft = false;
+                this.player.setFlipX(true);
+            }
         } else {
             this.player.setVelocityX(0);
         }
 
-        if (this.cursors.up.isDown) {
+        if (this.cursors.up.isDown || this.input.keyboard.addKey('W').isDown) {
             this.player.setVelocityY((xmove)? -speed / 1.5 : -speed);
             this.player.anims.play('go', true);
-        } else if (this.cursors.down.isDown) {
+        } else if (this.cursors.down.isDown || this.input.keyboard.addKey('S').isDown) {
             this.player.setVelocityY((xmove)? speed / 1.5 : speed);
             this.player.anims.play('go', true);
         } else {
@@ -224,8 +237,8 @@ class Menu extends Phaser.Scene {
     }
 
     start_game() {
-        // currentScene = 'learn';
-        currentScene = 'basescene';
+        currentScene = 'learn';
+        // currentScene = 'basescene';
         this.scene.scene.start(currentScene);
     }
 }
@@ -244,191 +257,34 @@ class PreLoader extends Phaser.Scene {
 }
 
 
-// TODO: simplify
-// TODO: simplify
-// TODO: simplify
-class Learn extends Phaser.Scene {
-    itemPickAndDrop;
-
+class Learn extends BaseScene {
     constructor() {
-        super({ key: 'learn' });
-        this.itemPickAndDrop = new ItemPickAndDrop(this, W, H);
-    }
-
-    player;
-    cursors;
-    speed;
-    rubbish;
-    timeSeconds;
-    timeText;
-    trashLeft;
-
-    preload() {
-        this.load.path = "assets/";
-        this.load.image('bg', 'bg/room1.png');
-        this.load.image('pl', 'fg/player.png');
-        this.load.atlas('player_sheet', 'fg/player_sheet.png', 'fg/player_sheet.json');
-        this.load.image('redwall', 'fg/redwall.png');
-        this.load.image('socks', 'fg/socks.png');
-        this.load.image('transparent', 'fg/transparent.png');
-        this.load.image('window', 'fg/window.png');
-
-        this.itemPickAndDrop.preloadAssets();
+        super('learn');
     }
 
     create() {
-        this.cursors = this.input.keyboard.createCursorKeys();
-        this.speed = 6;
-        this.itemPickAndDrop.initKeyboardAction();
-        this.instantiate_objects();
-        this.timeText = this.add.text(50, 8, 'Your parents are coming! Move to socks and click on it, then throw it to window.', { color: '#ffffff' });
-    }
-
-    instantiate_objects() {
         this.trashLeft = 2;
-
-        this.add.image(W / 2, H / 2, 'bg');
-
-        const wallwindow = this.matter.add.image(W / 2, 360, 'window').setScale(2, 2);
-
-        wallwindow.setSensor(true);
-        wallwindow.setStatic(true);
-        wallwindow.setOnCollide(function(coldata) {
-            if (!coldata.bodyA.isStatic && !(coldata.bodyA.gameObject.name === "player")) {
-                this.gameObject.scene.trashLeft -= 1;
-                console.log(this.trashLeft);
-                coldata.bodyA.gameObject.destroy();
-
-            } else if (!coldata.bodyB.isStatic && !(coldata.bodyB.gameObject.name === "player")) {
-                this.gameObject.scene.trashLeft -= 1;
-                console.log(this.trashLeft);
-                coldata.bodyB.gameObject.destroy();
-            }
-        });
-
-        this.player = this.matter.add.sprite(100, 400, 'player_sheet');
-
-        this.player.setVelocity(0, 0);
-        this.player.setBounce(1, 1);
-        this.player.name = "player";
-        this.anims.create({
-            key: 'idle',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 0, end: 0 }),
-            frameRate: 10,
-            duration: 1,
-            repeat: -1
-        });
-        this.anims.create({
-            key: 'go',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 0, end: 3 }),
-            frameRate: 10,
-            duration: 4,
-            repeat: -1
-        });
-        this.player.play('idle');
-
-        const topwall = this.matter.add.image(0, 0, 'transparent').setScale(1280, 190);
-
-        topwall.setBounce(1, 1);
-        topwall.setStatic(true);
-        topwall.setFriction(0.005);
-
-        const leftwall = this.matter.add.image(0, 0, 'transparent').setScale(1, 720);
-
-        leftwall.setBounce(1, 1);
-        leftwall.setStatic(true);
-        leftwall.setFriction(0.005);
-
-        const rightwall = this.matter.add.image(1278, 0, 'transparent').setScale(1, 720);
-
-        rightwall.setBounce(1, 1);
-        rightwall.setStatic(true);
-        rightwall.setFriction(0.005);
-
-        const botwall = this.matter.add.image(0, 718, 'transparent').setScale(1280, 1);
-
-        botwall.setBounce(1, 1);
-        botwall.setStatic(true);
-        botwall.setFriction(0.005);
-
-        this.itemPickAndDrop.initItemPlaceholder();
-
-        for (let i = 0; i < 2; i++) {
-            this.createRubbish(randomPos(), 'socks');
-        }
-    }
-
-    createRubbish(xy, imageName) {
-        const r = this.matter.add.image(
-            W * xy.x,
-            H * xy.y,
-            imageName
-        );
-        r.setInteractive(new Phaser.Geom.Rectangle(-8, -8, 48, 48), Phaser.Geom.Rectangle.Contains);
+        super.create();
+        this.add.text(50, 32, 'Your parents are coming!\nMove to rubbish and throw it to the window!', { color: '#ffffff' });
     }
 
     update() {
-        if (this.cursors.space.isDown) {
-            this.scene.start('pre');
-        }
-
         if (this.trashLeft === 0) {
             this.input.keyboard.on('keydown', this.next_scene);
-            this.timeText.text = "You are ready for the real challenge! Press any key...";
+            this.timeText.text = "You are ready for real challenge! Press any key...";
             return;
         }
 
-        const tdiff = this.timeSeconds - (this.time.now - this.time.startTime) / 1000;
-        if (tdiff <= 0 || this.player.body === undefined) {
-            return;
-        }
-
-        this.player.rotation = 0;
-        this.handle_controls();
-
+        super.update();
     }
 
-    handle_controls(player) {
-        let speed = (this.cursors.shift.isDown) ? this.speed * 2 : this.speed;
-
-        let xmove = this.cursors.left.isDown || this.cursors.right.isDown;
-        let ymove = this.cursors.up.isDown || this.cursors.down.isDown;
-
-        if (this.cursors.left.isDown) {
-            this.player.setVelocityX((ymove)? -speed / 1.5 : -speed);
-            this.player.anims.play('go', true);
-        } else if (this.cursors.right.isDown) {
-            this.player.setVelocityX((ymove)? speed / 1.5 : speed);
-            this.player.anims.play('go', true);
-        } else {
-            this.player.setVelocityX(0);
-        }
-
-        if (this.cursors.up.isDown) {
-            this.player.setVelocityY((xmove)? -speed / 1.5 : -speed);
-            this.player.anims.play('go', true);
-        } else if (this.cursors.down.isDown) {
-            this.player.setVelocityY((xmove)? speed / 1.5 : speed);
-            this.player.anims.play('go', true);
-        } else {
-            this.player.setVelocityY(0);
-        }
-
-        if (!xmove && !ymove) {
-            this.player.anims.play('idle', true);
-        }
-
-        this.itemPickAndDrop.checkIfKeyboardActionHappens();
-    }
+    upd_time(diff) {}
 
     next_scene() {
         currentScene = 'basescene';
         this.scene.scene.start(currentScene);
     }
 }
-// TODO: simplify
-// TODO: simplify
-// TODO: simplify
 
 
 const config = {
