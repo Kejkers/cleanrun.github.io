@@ -12,13 +12,38 @@ function randomPos() {
     }
 }
 
+function getDistance({x: x1, y: y1}, {x: x2, y: y2}) {
+    return Phaser.Math.Distance.Between(x1, y1, x2, y2);
+}
+
+function getAngle({x: x1, y: y1}, {x: x2, y: y2}) {
+    return Phaser.Math.Angle.Between(x1, y1, x2, y2);
+}
+
+function getAngleDifference(from, to1, to2) {
+    return Math.abs(getAngle(from, to1) - getAngle(from, to2));
+}
+
+function getDistanceFactors(p2, p1) {
+    const {x: x1, y: y1} = p1;
+    const {x: x2, y: y2} = p2;
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    let total = Math.abs(dx) + Math.abs(dy);
+    let xFactor = (dx / total);
+    let yFactor = (dy / total);
+    return new Phaser.Math.Vector2(xFactor, yFactor);
+}
+
 class BaseScene extends Phaser.Scene {
 
     itemPickAndDrop;
+    broomHandler;
 
     constructor(key='basescene') {
         super({ key: key });
         this.itemPickAndDrop = new ItemPickAndDrop(this, W, H);
+        this.broomHandler = new BroomHandler(this, W, H);
     }
 
     player;
@@ -27,7 +52,6 @@ class BaseScene extends Phaser.Scene {
     nooo_played;
     cursors;
     speed;
-    rubbish;
     timeSeconds;
     timeText;
     trashLeft;
@@ -59,6 +83,7 @@ class BaseScene extends Phaser.Scene {
             this.itemPickAndDrop = new ItemPickAndDrop(this, W, H);
         }
         this.itemPickAndDrop.preloadAssets(this);
+        this.broomHandler.preloadAssets();
     }
 
     create() {
@@ -68,14 +93,14 @@ class BaseScene extends Phaser.Scene {
         this.itemPickAndDrop.initKeyboardAction();
         this.itemPickAndDrop.create(this);
 
-        this.trashLeft = (this.trashLeft === undefined)? 30 : this.trashLeft;
+        this.trashLeft = (this.trashLeft === undefined)? 70 : this.trashLeft;
         this.instantiate_objects(this.trashLeft);
 
         this.timeSeconds = 90;
         this.timeText = this.add.text(W / 2, 8, 'Hurry up!', { color: '#ffffff' });
         this.add.text(50, 8, 'Press SPACE to restart', { color: '#ffffff' });
 
-        this.muteText = this.add.text(50, 64, 'Press M to ' + ((PLAYSOUND)? 'mute sounds' : 'unmute sounds'), { color: '#ffffff' });
+        this.muteText = this.add.text(50, 96, 'Press M to ' + ((PLAYSOUND)? 'mute sounds' : 'unmute sounds'), { color: '#ffffff' });
         this.mutePressLock = false;
         this.sound.setVolume(100);
     }
@@ -153,6 +178,7 @@ class BaseScene extends Phaser.Scene {
         botwall.setFriction(0.005);
 
         this.itemPickAndDrop.initItemPlaceholder();
+        this.broomHandler.createBroom(randomPos())
 
         let table = this.matter.add.image(W/2, H/2, 'table');
 
@@ -194,11 +220,12 @@ class BaseScene extends Phaser.Scene {
         );
         r.name = "rubbish";
         r.setInteractive(new Phaser.Geom.Rectangle(-8, -8, 48, 48), Phaser.Geom.Rectangle.Contains);
+        r.name = 'rubbish';
     }
 
     update() {
         if (this.cursors.space.isDown) {
-            this.trashLeft = 50;
+            this.trashLeft = 70;
             this.scene.start('pre');
         }
 
@@ -274,6 +301,9 @@ class BaseScene extends Phaser.Scene {
         }
 
         this.itemPickAndDrop.checkIfKeyboardActionHappens();
+
+        this.broomHandler.active = this.itemPickAndDrop.itemOnPlaceholder === this.broomHandler.broomReference;
+        this.broomHandler.handleClick();
     }
 
     upd_time(diff) {
@@ -333,7 +363,7 @@ class Learn extends BaseScene {
     create() {
         this.trashLeft = 2;
         super.create();
-        this.add.text(50, 32, 'Your parents are coming!\nMove to rubbish and throw it to the window!', { color: '#ffffff' });
+        this.add.text(50, 32, 'Your parents are coming!\nThrow rubbish the window with LMB!\nTake broom and use RMB to move rubbish!', { color: '#ffffff' });
     }
 
     update() {
@@ -442,7 +472,7 @@ class ItemPickAndDrop {
     }
 
     take(item) {
-        const distance = Math.sqrt((this.game.player.x - item.x) * (this.game.player.x - item.x) + (this.game.player.y - item.y) * (this.game.player.y - item.y));
+        const distance = getDistance(this.game.player, item);
         if (distance > 170) {
             return;
         }
@@ -463,11 +493,7 @@ class ItemPickAndDrop {
         item.setStatic(false);
         item.x = this.game.player.x;
         item.y = this.game.player.y;
-        let dx = x - item.x;
-        let dy = y - item.y;
-        let total = Math.abs(dx) + Math.abs(dy);
-        let xFactor = (dx / total);
-        let yFactor = (dy / total);
+        let {x: xFactor, y: yFactor} = getDistanceFactors({x, y}, item);
         item.x = item.x + (xFactor * ItemPickAndDrop.THROW_DELTA_POS);
         item.y = item.y + (yFactor * ItemPickAndDrop.THROW_DELTA_POS);
         item.setVelocityX(xFactor * ItemPickAndDrop.THROW_SPEED);
@@ -483,3 +509,66 @@ class ItemPickAndDrop {
         return !!this.itemOnPlaceholder;
     }
 }
+
+class BroomHandler {
+    broomReference;
+    game;
+    w;
+    h;
+    active = true;
+    inUse = false;
+
+    static FUCKING_SPEED = 15;
+    static ANGLE_IN_RADIANS = Math.PI / 2;
+    static DIRECTION_ERROR_IN_RADIANS = Math.PI * (1 / 3);
+    static BROOM_LENGTH = 150;
+
+    constructor(game, w, h) {
+        this.game = game;
+        this.w = w;
+        this.h = h;
+    }
+
+    preloadAssets() {
+        this.game.load.image('broom', 'fg/broom.png');
+    }
+
+    createBroom({x, y}) {
+        this.broomReference = this.game.matter.add.image(x * this.w, y * this.h, 'broom');
+        this.broomReference.setScale(2, 2);
+        this.broomReference.setInteractive(
+            new Phaser.Geom.Rectangle(0, 0, 64, 64),
+            Phaser.Geom.Rectangle.Contains
+        );
+    }
+
+    handleClick() {
+        let p = this.game.input.mousePointer;
+        if (!p.rightButtonDown()) {
+            this.inUse = false;
+        }
+        if (p.rightButtonDown() && this.active && !this.inUse) {
+            this.inUse = true;
+            this.act(p);
+        }
+    }
+
+    act(targetPosXY) {
+        this.game.matter.world.localWorld.bodies
+            .map(x => x.gameObject)
+            .filter(x => x.name === 'rubbish'
+                && getDistance(this.game.player, x) < BroomHandler.BROOM_LENGTH
+                && getAngleDifference(this.game.player, targetPosXY, x) < BroomHandler.ANGLE_IN_RADIANS)
+            .forEach(x => {
+                let factors = getDistanceFactors(targetPosXY, x);
+                factors.rotate((BroomHandler.DIRECTION_ERROR_IN_RADIANS * Math.random()) - (BroomHandler.DIRECTION_ERROR_IN_RADIANS / 2));
+                const speedMP = BroomHandler.FUCKING_SPEED // базовая скорость / база
+                    * (1.5 - Math.random() / 2) // случайное изменение скорости чисто по приколу
+                    * 2.0 * (1.0 - Math.max(getDistance(this.game.player, x) / BroomHandler.BROOM_LENGTH, 0.5)); // уменьшение скорости для дальних объектов
+                x.setVelocityX(factors.x * speedMP);
+                x.setVelocityY(factors.y * speedMP);
+                x.setAngularVelocity(0.5 - Math.random()); // пусть вертится хуле нет
+            });
+    }
+}
+
