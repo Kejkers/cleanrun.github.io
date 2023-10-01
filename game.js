@@ -78,6 +78,7 @@ class BaseScene extends Phaser.Scene {
 
         this.load.audio('a_step', ['sounds/step.mp3']);
         this.load.audio('a_nooo', ['sounds/nooo.mp3']);
+        this.load.audio('a_music', ['sounds/game_music.mp3']);
 
         if (this.itemPickAndDrop === undefined) {
             this.itemPickAndDrop = new ItemPickAndDrop(this, W, H);
@@ -93,16 +94,16 @@ class BaseScene extends Phaser.Scene {
         this.itemPickAndDrop.initKeyboardAction();
         this.itemPickAndDrop.create(this);
 
-        this.trashLeft = (this.trashLeft === undefined)? 70 : this.trashLeft;
+        this.trashLeft = (this.trashLeft === undefined)? 90 : this.trashLeft;
         this.instantiate_objects(this.trashLeft);
 
-        this.timeSeconds = 90;
+        this.timeSeconds = 130;
         this.timeText = this.add.text(W / 2, 8, 'Hurry up!', { color: '#ffffff' });
         this.add.text(50, 8, 'Press SPACE to restart', { color: '#ffffff' });
 
         this.muteText = this.add.text(50, 96, 'Press M to ' + ((PLAYSOUND)? 'mute sounds' : 'unmute sounds'), { color: '#ffffff' });
         this.mutePressLock = false;
-        this.sound.setVolume(100);
+        this.sound.setVolume(60);
     }
 
     instantiate_objects(maxObjects=50) {
@@ -153,6 +154,8 @@ class BaseScene extends Phaser.Scene {
         this.sound_nooo = this.sound.add('a_nooo');
         this.nooo_played = false;
 
+        this.sound_music = this.sound.add('a_music');
+
         const topwall = this.matter.add.image(EXTRA_BOUNDS_SIZE, 0, 'transparent').setScale(W + EXTRA_BOUNDS_SIZE, 190);
 
         topwall.setBounce(1, 1);
@@ -192,17 +195,22 @@ class BaseScene extends Phaser.Scene {
 
         for (let i = 0; i < maxObjects; i++) {
             let texture = 'socks';
+            let scale = 0.5;
 
             if (i % 11 == 0) {
                 texture = 'clothes';
+                scale = 0.75;
             } else if (i % 9 == 0) {
                 texture = 'pizza';
+                scale = 1;
             } else if (i % 7 == 0) {
                 texture = 'chips';
+                scale = 1;
             } else if (i % 6 == 0) {
                 texture = 'beer';
+                scale = 1;
             }
-            this.createRubbish(randomPos(), texture);
+            this.createRubbish(randomPos(), texture, scale);
         }
         if (maxObjects > 10) {
             this.createRubbish(randomPos(), 'sleepyguy');
@@ -210,14 +218,16 @@ class BaseScene extends Phaser.Scene {
         }
 
         this.add.image(W/3, 8, 'lamp');
+
+        this.sound_music.play();
     }
 
-    createRubbish(xy, imageName) {
+    createRubbish(xy, imageName, scale) {
         let r = this.matter.add.image(
             W * xy.x,
             H * xy.y,
             imageName
-        );
+        ).setScale(scale, scale);
         r.name = "rubbish";
         r.setInteractive(new Phaser.Geom.Rectangle(-8, -8, 48, 48), Phaser.Geom.Rectangle.Contains);
         r.name = 'rubbish';
@@ -225,12 +235,16 @@ class BaseScene extends Phaser.Scene {
 
     update() {
         if (this.cursors.space.isDown) {
-            this.trashLeft = 70;
+            this.trashLeft = 90;
+            this.sound.stopAll();
+            this.itemPickAndDrop = new ItemPickAndDrop(this, W, H);
             this.scene.start('pre');
+            return;
         }
 
         if (this.trashLeft === 0) {
-            this.timeText.text = "You've done this!";
+            this.input.keyboard.on('keydown', this.next_scene);
+            this.timeText.text = "You've done this! Press any key...";
             return;
         }
 
@@ -312,6 +326,11 @@ class BaseScene extends Phaser.Scene {
         let residSeconds = secondsLeft - minutesLeft * 60;
         this.timeText.text = minutesLeft.toString() + ':' + ((residSeconds < 10)? '0' : '') + residSeconds.toString();
     }
+
+    next_scene() {
+        currentScene = 'wincomics';
+        this.scene.scene.start(currentScene);
+    }
 }
 
 class Menu extends Phaser.Scene {
@@ -334,7 +353,12 @@ class Menu extends Phaser.Scene {
         this.add.text(20, H * 0.5, 'Press any key to start', { color: '#ffffff' });
         this.add.text(20, H * 0.6, 'Press SPACE while playing to restart game', { color: '#ffffff' });
         this.add.text(20, H * 0.7, 'Press M while playing to mute sounds', { color: '#ffffff' });
+        this.add.text(20, H * 0.8, 'dev: khmhmm, nekogochan\nart: dasdavs\naudio: rezultant', { color: '#ffffff' });
+
+        this.sound.setVolume(50);
+
         this.input.keyboard.on('keydown', this.handle_key);
+
     }
 
     handle_key() {
@@ -396,15 +420,23 @@ class PreviewComics extends Phaser.Scene {
     {
         this.load.path = "assets/";
         this.load.image('comics', 'bg/startcomics.png');
+
+        this.load.audio('a_menu_music', ['sounds/menu_music.mp3']);
     }
 
     create ()
     {
         this.add.image(W / 2, H / 2, 'comics');
-        this.add.text(26, H * 0.85, 'Press any key to start', { color: '#ffffff' });
+        this.add.text(26, H * 0.85, 'Press any key to start', { color: '#000000' });
         this.input.keyboard.on('keydown', this.handle_key);
         this.canStart = false;
         setTimeout(this.doCanStart, 2000, this);
+        this.menu_music = this.sound.add('a_menu_music');
+        setTimeout(this.playMusic, 100, this);
+    }
+
+    playMusic(scene) {
+        scene.menu_music.play();
     }
 
     doCanStart(scene) {
@@ -414,7 +446,52 @@ class PreviewComics extends Phaser.Scene {
 
     handle_key() {
         if (this.scene.canStart) {
+            this.scene.sound.stopAll();
             currentScene = 'learn';
+            this.scene.scene.start(currentScene);
+        }
+    }
+}
+
+
+class WinComics extends Phaser.Scene {
+    constructor ()
+    {
+        super({ key: 'wincomics' });
+    }
+
+    preload ()
+    {
+        this.load.path = "assets/";
+        this.load.image('wincomics', 'bg/wincomics.png');
+
+        this.load.audio('a_menu_music', ['sounds/menu_music.mp3']);
+    }
+
+    create ()
+    {
+        this.add.image(W / 2, H / 2, 'wincomics');
+        this.add.text(26, 79, "You've cleaned your room\njust in time.\nGood job!\nAnd thanks for playing!", { color: '#000000' });
+        this.add.text(26, H * 0.85, 'Press any key', { color: '#000000' });
+        this.input.keyboard.on('keydown', this.handle_key);
+        this.canStart = false;
+        setTimeout(this.doCanStart, 2000, this);
+        this.menu_music = this.sound.add('a_menu_music');
+        setTimeout(this.playMusic, 100, this);
+    }
+
+    playMusic(scene) {
+        scene.menu_music.play();
+    }
+
+    doCanStart(scene) {
+        scene.canStart = true;
+    }
+
+    handle_key() {
+        if (this.scene.canStart) {
+            this.scene.sound.stopAll();
+            currentScene = 'menu';
             this.scene.scene.start(currentScene);
         }
     }
@@ -438,7 +515,7 @@ const config = {
             }
         }
     },
-    scene: [PreLoader, Menu, PreviewComics, Learn, BaseScene]
+    scene: [PreLoader, Menu, PreviewComics, Learn, BaseScene, WinComics]
 };
 
 const game = new Phaser.Game(config);
@@ -513,7 +590,11 @@ class ItemPickAndDrop {
             return;
         }
         let {x, y} = this.squarePos;
+        item.rotation = 0;
         this.itemOnPlaceholder = item;
+        if (item === undefined) {
+            return;
+        }
         item.setStatic(true);
         item.x = x;
         item.y = y;
@@ -526,6 +607,9 @@ class ItemPickAndDrop {
     throw(x, y) {
         let item = this.itemOnPlaceholder;
         this.itemOnPlaceholder = null;
+        if (item === undefined) {
+            return;
+        }
         item.setStatic(false);
         item.x = this.game.player.x;
         item.y = this.game.player.y;
