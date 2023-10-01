@@ -1,5 +1,8 @@
 const W = 1280;
 const H = 720;
+const EXTRA_BOUNDS_SIZE = 300;
+const DEBUG = true;
+
 
 function randomPos() {
     return {
@@ -12,8 +15,8 @@ class BaseScene extends Phaser.Scene {
 
     itemPickAndDrop;
 
-    constructor() {
-        super({ key: 'basescene' });
+    constructor(key='basescene') {
+        super({ key: key });
         this.itemPickAndDrop = new ItemPickAndDrop(this, W, H);
     }
 
@@ -23,6 +26,7 @@ class BaseScene extends Phaser.Scene {
     rubbish;
     timeSeconds;
     timeText;
+    trashLeft;
 
     preload() {
         this.load.path = "assets/";
@@ -30,9 +34,14 @@ class BaseScene extends Phaser.Scene {
         this.load.image('pl', 'fg/player.png');
         this.load.atlas('player_sheet', 'fg/player_sheet.png', 'fg/player_sheet.json');
         this.load.image('redwall', 'fg/redwall.png');
-        this.load.image('trash', 'fg/trash.png');
-        this.load.image('dildo', 'fg/dildo.png');
+        this.load.image('socks', 'fg/socks.png');
+        this.load.image('transparent', 'fg/transparent.png');
+        this.load.image('window', 'fg/window.png');
+        this.load.image('table', 'fg/table.png');
 
+        if (this.itemPickAndDrop === undefined) {
+            this.itemPickAndDrop = new ItemPickAndDrop(this, W, H);
+        }
         this.itemPickAndDrop.preloadAssets();
     }
 
@@ -40,51 +49,90 @@ class BaseScene extends Phaser.Scene {
         this.cursors = this.input.keyboard.createCursorKeys();
         this.speed = 6;
         this.itemPickAndDrop.initKeyboardAction();
-        this.instantiate_objects();
+        this.trashLeft = (this.trashLeft === undefined)? 50 : this.trashLeft;
+        this.instantiate_objects(this.trashLeft);
         this.timeSeconds = 90;
-        this.timeText = this.add.text(W / 2, 8, 'Timer felt asleep :<', { color: '#ffffff' });
+        this.timeText = this.add.text(W / 2, 8, 'Hurry up!', { color: '#ffffff' });
+        this.add.text(50, 8, 'Press SPACE to restart', { color: '#ffffff' });
     }
 
-    instantiate_objects() {
+    instantiate_objects(maxObjects=50) {
+        console.log(maxObjects);
+        this.trashLeft = maxObjects;
+
         this.add.image(W / 2, H / 2, 'bg');
 
-        this.player = this.matter.add.sprite(100, 400, 'player_sheet');
+        const wallwindow = this.matter.add.image(W / 2, 140, 'window').setScale(2, 2);
+
+        wallwindow.setSensor(true);
+        wallwindow.setStatic(true);
+        wallwindow.setOnCollide(function(coldata) {
+            if (!coldata.bodyA.isStatic && !(coldata.bodyA.gameObject.name === "player")) {
+                this.gameObject.scene.trashLeft -= 1;
+                coldata.bodyA.gameObject.destroy();
+
+            } else if (!coldata.bodyB.isStatic && !(coldata.bodyB.gameObject.name === "player")) {
+                this.gameObject.scene.trashLeft -= 1;
+                coldata.bodyB.gameObject.destroy();
+            }
+        });
+
+        this.player = this.matter.add.sprite(100, 400, 'player_sheet').setScale(0.304878, 0.3);
 
         this.player.setVelocity(0, 0);
         this.player.setBounce(1, 1);
+        this.player.name = "player";
         this.anims.create({
             key: 'idle',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 0, end: 0 }),
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 4, end: 4 }),
             frameRate: 10,
             duration: 1,
             repeat: -1
         });
         this.anims.create({
             key: 'go',
-            frames: this.anims.generateFrameNumbers('player_sheet', { start: 0, end: 3 }),
+            frames: this.anims.generateFrameNumbers('player_sheet', { start: 0, end: 5 }),
             frameRate: 10,
             duration: 4,
             repeat: -1
         });
         this.player.play('idle');
+        this.player.lookLeft = true;
 
-        const trash = this.matter.add.image(400, 500, 'trash');
-
-        trash.setBounce(1, 1);
-        trash.setStatic(true);
-        trash.setFriction(0.005);
-
-        const topwall = this.matter.add.image(0, 0, 'redwall').setScale(30, 6);
+        const topwall = this.matter.add.image(EXTRA_BOUNDS_SIZE, 0, 'transparent').setScale(W + EXTRA_BOUNDS_SIZE, 190);
 
         topwall.setBounce(1, 1);
         topwall.setStatic(true);
         topwall.setFriction(0.005);
 
-        this.itemPickAndDrop.setPlayer(this.player);
+        const leftwall = this.matter.add.image(-EXTRA_BOUNDS_SIZE + 2, 0, 'transparent').setScale(EXTRA_BOUNDS_SIZE, H);
+
+        leftwall.setBounce(1, 1);
+        leftwall.setStatic(true);
+        leftwall.setFriction(0.005);
+
+        const rightwall = this.matter.add.image(EXTRA_BOUNDS_SIZE + W - 2, 0, 'transparent').setScale(EXTRA_BOUNDS_SIZE, H);
+
+        rightwall.setBounce(1, 1);
+        rightwall.setStatic(true);
+        rightwall.setFriction(0.005);
+
+        const botwall = this.matter.add.image(-EXTRA_BOUNDS_SIZE, H + EXTRA_BOUNDS_SIZE - 2, 'transparent').setScale(W + EXTRA_BOUNDS_SIZE, EXTRA_BOUNDS_SIZE);
+
+        botwall.setBounce(1, 1);
+        botwall.setStatic(true);
+        botwall.setFriction(0.005);
+
         this.itemPickAndDrop.initItemPlaceholder();
 
-        for (let i = 0; i < 50; i++) {
-            this.createRubbish(randomPos(), 'dildo');
+        const table = this.matter.add.image(W/2, H/2, 'table');
+
+        table.setBounce(1, 1);
+        table.setStatic(true);
+        table.setFriction(0.005);
+
+        for (let i = 0; i < maxObjects; i++) {
+            this.createRubbish(randomPos(), 'socks');
         }
     }
 
@@ -99,39 +147,55 @@ class BaseScene extends Phaser.Scene {
 
     update() {
         if (this.cursors.space.isDown) {
+            this.trashLeft = 50;
             this.scene.start('pre');
         }
 
-        const tdiff = this.timeSeconds - (this.time.now - this.time.startTime) / 1000;
-        if (tdiff <= 0) {
+        if (this.trashLeft === 0) {
+            this.timeText.text = "You've done this!";
             return;
         }
+
+        const tdiff = this.timeSeconds - (this.time.now - this.time.startTime) / 1000;
+        if (tdiff <= 0 || this.player.body === undefined) {
+            return;
+        }
+
 
         this.player.rotation = 0;
         this.handle_controls();
         this.upd_time(tdiff);
+
     }
 
-    handle_controls(player) {
+    handle_controls() {
         let speed = (this.cursors.shift.isDown) ? this.speed * 2 : this.speed;
 
-        let xmove = this.cursors.left.isDown || this.cursors.right.isDown;
-        let ymove = this.cursors.up.isDown || this.cursors.down.isDown;
+        let xmove = this.cursors.left.isDown || this.cursors.right.isDown || this.input.keyboard.addKey('A').isDown || this.input.keyboard.addKey('D').isDown;
+        let ymove = this.cursors.up.isDown || this.cursors.down.isDown || this.input.keyboard.addKey('W').isDown || this.input.keyboard.addKey('S').isDown;
 
-        if (this.cursors.left.isDown) {
+        if (this.cursors.left.isDown || this.input.keyboard.addKey('A').isDown) {
             this.player.setVelocityX((ymove)? -speed / 1.5 : -speed);
             this.player.anims.play('go', true);
-        } else if (this.cursors.right.isDown) {
+            if (!this.player.lookLeft) {
+                this.player.lookLeft = true;
+                this.player.setFlipX(false);
+            }
+        } else if (this.cursors.right.isDown || this.input.keyboard.addKey('D').isDown) {
             this.player.setVelocityX((ymove)? speed / 1.5 : speed);
             this.player.anims.play('go', true);
+            if (this.player.lookLeft) {
+                this.player.lookLeft = false;
+                this.player.setFlipX(true);
+            }
         } else {
             this.player.setVelocityX(0);
         }
 
-        if (this.cursors.up.isDown) {
+        if (this.cursors.up.isDown || this.input.keyboard.addKey('W').isDown) {
             this.player.setVelocityY((xmove)? -speed / 1.5 : -speed);
             this.player.anims.play('go', true);
-        } else if (this.cursors.down.isDown) {
+        } else if (this.cursors.down.isDown || this.input.keyboard.addKey('S').isDown) {
             this.player.setVelocityY((xmove)? speed / 1.5 : speed);
             this.player.anims.play('go', true);
         } else {
@@ -147,7 +211,7 @@ class BaseScene extends Phaser.Scene {
 
     upd_time(diff) {
         let secondsLeft = Math.round(diff);
-        let minutesLeft = (secondsLeft >= 60)? Math.round(secondsLeft / 60) : 0;
+        let minutesLeft = (secondsLeft >= 60)? Math.floor(secondsLeft / 60) : 0;
         let residSeconds = secondsLeft - minutesLeft * 60;
         this.timeText.text = minutesLeft.toString() + ':' + ((residSeconds < 10)? '0' : '') + residSeconds.toString();
     }
@@ -173,7 +237,8 @@ class Menu extends Phaser.Scene {
     }
 
     start_game() {
-        currentScene = 'basescene';
+        currentScene = 'learn';
+        // currentScene = 'basescene';
         this.scene.scene.start(currentScene);
     }
 }
@@ -192,6 +257,35 @@ class PreLoader extends Phaser.Scene {
 }
 
 
+class Learn extends BaseScene {
+    constructor() {
+        super('learn');
+    }
+
+    create() {
+        this.trashLeft = 2;
+        super.create();
+        this.add.text(50, 32, 'Your parents are coming!\nMove to rubbish and throw it to the window!', { color: '#ffffff' });
+    }
+
+    update() {
+        if (this.trashLeft === 0) {
+            this.input.keyboard.on('keydown', this.next_scene);
+            this.timeText.text = "You are ready for real challenge! Press any key...";
+            return;
+        }
+
+        super.update();
+    }
+
+    upd_time(diff) {}
+
+    next_scene() {
+        currentScene = 'basescene';
+        this.scene.scene.start(currentScene);
+    }
+}
+
 
 const config = {
     type: Phaser.AUTO,
@@ -200,13 +294,13 @@ const config = {
     physics: {
         default: 'matter',
         matter: {
-            debug: true,
+            debug: DEBUG,
             gravity: {
                 y: 0.0
             }
         }
     },
-    scene: [PreLoader, Menu, BaseScene]
+    scene: [PreLoader, Menu, Learn, BaseScene]
 };
 
 const game = new Phaser.Game(config);
@@ -218,10 +312,9 @@ class ItemPickAndDrop {
     itemOnPlaceholder;
     squarePos;
     canThrow; // ебаный костыль
-    player;
 
     static THROW_DELTA_POS = 100;
-    static THROW_SPEED = 10;
+    static THROW_SPEED = 15;
     static SQUARE_POS_X = 0.9;
     static SQUARE_POS_Y = 0.05;
 
@@ -237,10 +330,6 @@ class ItemPickAndDrop {
         this.game.load.image('square', 'fg/square.png');
     }
 
-    setPlayer(player) {
-        this.player = player;
-    }
-
     initItemPlaceholder() {
         let {x, y} = this.squarePos;
         this.game.add.image(x, y, 'square');
@@ -254,7 +343,7 @@ class ItemPickAndDrop {
                 return;
             }
             if (!this.isPickedUp()) {
-                this.take(gameObject, this.player.x, this.player.y);
+                this.take(gameObject);
             }
         });
     }
@@ -272,9 +361,9 @@ class ItemPickAndDrop {
         }
     }
 
-    take(item, playerX, playerY) {
-        const distance = Math.sqrt((playerX - item.x) * (playerX - item.x) + (playerY - item.y) * (playerY - item.y));
-        if (distance > 100) {
+    take(item) {
+        const distance = Math.sqrt((this.game.player.x - item.x) * (this.game.player.x - item.x) + (this.game.player.y - item.y) * (this.game.player.y - item.y));
+        if (distance > 160) {
             return;
         }
         let {x, y} = this.squarePos;
@@ -300,6 +389,7 @@ class ItemPickAndDrop {
         item.y = item.y + (yFactor * ItemPickAndDrop.THROW_DELTA_POS);
         item.setVelocityX(xFactor * ItemPickAndDrop.THROW_SPEED);
         item.setVelocityY(yFactor * ItemPickAndDrop.THROW_SPEED);
+        item.setAngularVelocity(0.25);
     }
 
     isPickedUp() {
