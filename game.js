@@ -2,6 +2,7 @@ const W = 1280;
 const H = 720;
 const EXTRA_BOUNDS_SIZE = 300;
 const DEBUG = true;
+let PLAYSOUND = true;
 
 
 function randomPos() {
@@ -46,11 +47,16 @@ class BaseScene extends Phaser.Scene {
     }
 
     player;
+    sound_step;
+    sound_nooo;
+    nooo_played;
     cursors;
     speed;
     timeSeconds;
     timeText;
     trashLeft;
+    muteText;
+    mutePressLock; // toje kostyl
 
     preload() {
         this.load.path = "assets/";
@@ -62,23 +68,41 @@ class BaseScene extends Phaser.Scene {
         this.load.image('transparent', 'fg/transparent.png');
         this.load.image('window', 'fg/window.png');
         this.load.image('table', 'fg/table.png');
+        this.load.image('sofa', 'fg/sofa.png');
+        this.load.image('sleepyguy', 'fg/sleepyguy.png');
+        this.load.image('clothes', 'fg/clothes.png');
+        this.load.image('pizza', 'fg/pizza.png');
+        this.load.image('chips', 'fg/chips.png');
+        this.load.image('lamp', 'fg/lamp.png');
+        this.load.image('beer', 'fg/beer.png');
+
+        this.load.audio('a_step', ['sounds/step.mp3']);
+        this.load.audio('a_nooo', ['sounds/nooo.mp3']);
 
         if (this.itemPickAndDrop === undefined) {
             this.itemPickAndDrop = new ItemPickAndDrop(this, W, H);
         }
-        this.itemPickAndDrop.preloadAssets();
+        this.itemPickAndDrop.preloadAssets(this);
         this.broomHandler.preloadAssets();
     }
 
     create() {
         this.cursors = this.input.keyboard.createCursorKeys();
         this.speed = 6;
+
         this.itemPickAndDrop.initKeyboardAction();
-        this.trashLeft = (this.trashLeft === undefined)? 50 : this.trashLeft;
+        this.itemPickAndDrop.create(this);
+
+        this.trashLeft = (this.trashLeft === undefined)? 70 : this.trashLeft;
         this.instantiate_objects(this.trashLeft);
+
         this.timeSeconds = 90;
         this.timeText = this.add.text(W / 2, 8, 'Hurry up!', { color: '#ffffff' });
         this.add.text(50, 8, 'Press SPACE to restart', { color: '#ffffff' });
+
+        this.muteText = this.add.text(50, 96, 'Press M to ' + ((PLAYSOUND)? 'mute sounds' : 'unmute sounds'), { color: '#ffffff' });
+        this.mutePressLock = false;
+        this.sound.setVolume(100);
     }
 
     instantiate_objects(maxObjects=50) {
@@ -92,11 +116,11 @@ class BaseScene extends Phaser.Scene {
         wallwindow.setSensor(true);
         wallwindow.setStatic(true);
         wallwindow.setOnCollide(function(coldata) {
-            if (!coldata.bodyA.isStatic && !(coldata.bodyA.gameObject.name === "player")) {
+            if (!coldata.bodyA.isStatic && coldata.bodyA.gameObject.name === "rubbish") {
                 this.gameObject.scene.trashLeft -= 1;
                 coldata.bodyA.gameObject.destroy();
 
-            } else if (!coldata.bodyB.isStatic && !(coldata.bodyB.gameObject.name === "player")) {
+            } else if (!coldata.bodyB.isStatic && coldata.bodyB.gameObject.name === "rubbish") {
                 this.gameObject.scene.trashLeft -= 1;
                 coldata.bodyB.gameObject.destroy();
             }
@@ -123,6 +147,11 @@ class BaseScene extends Phaser.Scene {
         });
         this.player.play('idle');
         this.player.lookLeft = true;
+        this.sound_step = this.sound.add('a_step');
+        this.sound_step.loop = true;
+
+        this.sound_nooo = this.sound.add('a_nooo');
+        this.nooo_played = false;
 
         const topwall = this.matter.add.image(EXTRA_BOUNDS_SIZE, 0, 'transparent').setScale(W + EXTRA_BOUNDS_SIZE, 190);
 
@@ -151,30 +180,52 @@ class BaseScene extends Phaser.Scene {
         this.itemPickAndDrop.initItemPlaceholder();
         this.broomHandler.createBroom(randomPos())
 
-        const table = this.matter.add.image(W/2, H/2, 'table');
+        let table = this.matter.add.image(W/2, H/2, 'table');
 
         table.setBounce(1, 1);
-        table.setStatic(true);
-        table.setFriction(0.005);
+        table.setFriction(0.085);
+
+        let sofa = this.matter.add.image(W * 0.9, 250, 'sofa').setScale(2.5, 1.7);
+
+        sofa.setBounce(1, 1);
+        sofa.setFriction(0.085);
 
         for (let i = 0; i < maxObjects; i++) {
-            this.createRubbish(randomPos(), 'socks');
+            let texture = 'socks';
+
+            if (i % 11 == 0) {
+                texture = 'clothes';
+            } else if (i % 9 == 0) {
+                texture = 'pizza';
+            } else if (i % 7 == 0) {
+                texture = 'chips';
+            } else if (i % 6 == 0) {
+                texture = 'beer';
+            }
+            this.createRubbish(randomPos(), texture);
         }
+        if (maxObjects > 10) {
+            this.createRubbish(randomPos(), 'sleepyguy');
+            this.trashLeft += 1;
+        }
+
+        this.add.image(W/2, 8, 'lamp');
     }
 
     createRubbish(xy, imageName) {
-        const r = this.matter.add.image(
+        let r = this.matter.add.image(
             W * xy.x,
             H * xy.y,
             imageName
         );
+        r.name = "rubbish";
         r.setInteractive(new Phaser.Geom.Rectangle(-8, -8, 48, 48), Phaser.Geom.Rectangle.Contains);
         r.name = 'rubbish';
     }
 
     update() {
         if (this.cursors.space.isDown) {
-            this.trashLeft = 50;
+            this.trashLeft = 70;
             this.scene.start('pre');
         }
 
@@ -185,6 +236,10 @@ class BaseScene extends Phaser.Scene {
 
         const tdiff = this.timeSeconds - (this.time.now - this.time.startTime) / 1000;
         if (tdiff <= 0 || this.player.body === undefined) {
+            if (PLAYSOUND && !this.nooo_played) {
+                this.sound_nooo.play();
+                this.nooo_played = true;
+            }
             return;
         }
 
@@ -192,7 +247,7 @@ class BaseScene extends Phaser.Scene {
         this.player.rotation = 0;
         this.handle_controls();
         this.upd_time(tdiff);
-
+        this.muteText.text = 'Press M to ' + ((PLAYSOUND)? 'mute sounds' : 'unmute sounds');
     }
 
     handle_controls() {
@@ -229,8 +284,20 @@ class BaseScene extends Phaser.Scene {
             this.player.setVelocityY(0);
         }
 
-        if (!xmove && !ymove) {
+        if (xmove || ymove) {
+            if (PLAYSOUND && !this.sound_step.isPlaying) {
+                this.sound_step.play();
+            }
+        } else if (!xmove && !ymove) {
             this.player.anims.play('idle', true);
+            this.sound_step.stop();
+        }
+
+        if (!this.mutePressLock && this.input.keyboard.addKey('M').isDown) {
+            this.mutePressLock = true;
+            PLAYSOUND = !PLAYSOUND;
+        } else if (this.mutePressLock && this.input.keyboard.addKey('M').isUp) {
+            this.mutePressLock = false;
         }
 
         this.itemPickAndDrop.checkIfKeyboardActionHappens();
@@ -263,10 +330,11 @@ class Menu extends Phaser.Scene {
         this.add.text(W / 11, H / 6, 'Ludum dare 54 game', { color: '#ffffff' });
         this.add.text(W / 11, H / 4, 'Press any key to start', { color: '#ffffff' });
         this.add.text(W / 11, H / 2, 'Press SPACE while playing to restart game', { color: '#ffffff' });
-        this.input.keyboard.on('keydown', this.start_game);
+        this.add.text(W / 11, H / 2 + H / 6, 'Press M while playing to mute sounds', { color: '#ffffff' });
+        this.input.keyboard.on('keydown', this.handle_key);
     }
 
-    start_game() {
+    handle_key() {
         currentScene = 'learn';
         // currentScene = 'basescene';
         this.scene.scene.start(currentScene);
@@ -295,7 +363,7 @@ class Learn extends BaseScene {
     create() {
         this.trashLeft = 2;
         super.create();
-        this.add.text(50, 32, 'Your parents are coming!\nMove to rubbish and throw it to the window!', { color: '#ffffff' });
+        this.add.text(50, 32, 'Your parents are coming!\nThrow rubbish the window with LMB!\nTake broom and use RMB to move rubbish!', { color: '#ffffff' });
     }
 
     update() {
@@ -321,6 +389,10 @@ const config = {
     type: Phaser.AUTO,
     width: W,
     height: H,
+    pixelArt: true,
+    audio: {
+        disableWebAudio: true
+    },
     physics: {
         default: 'matter',
         matter: {
@@ -356,8 +428,16 @@ class ItemPickAndDrop {
         };
     }
 
-    preloadAssets() {
-        this.game.load.image('square', 'fg/square.png');
+    preloadAssets(scene) {
+        scene.load.image('square', 'fg/square.png');
+
+        scene.load.audio('a_take', ['sounds/take.mp3']);
+        scene.load.audio('a_throw', ['sounds/throw.mp3']);
+    }
+
+    create(scene) {
+        this.sound_take = scene.sound.add('a_take');
+        this.sound_throw = scene.sound.add('a_throw');
     }
 
     initItemPlaceholder() {
@@ -393,7 +473,7 @@ class ItemPickAndDrop {
 
     take(item) {
         const distance = getDistance(this.game.player, item);
-        if (distance > 160) {
+        if (distance > 170) {
             return;
         }
         let {x, y} = this.squarePos;
@@ -402,6 +482,9 @@ class ItemPickAndDrop {
         item.x = x;
         item.y = y;
         this.canThrow = false;
+        if (PLAYSOUND) {
+            this.sound_take.play();
+        }
     }
 
     throw(x, y) {
@@ -416,6 +499,9 @@ class ItemPickAndDrop {
         item.setVelocityX(xFactor * ItemPickAndDrop.THROW_SPEED);
         item.setVelocityY(yFactor * ItemPickAndDrop.THROW_SPEED);
         item.setAngularVelocity(0.25);
+        if (PLAYSOUND) {
+            this.sound_throw.play();
+        }
     }
 
     isPickedUp() {
