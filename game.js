@@ -1,7 +1,7 @@
 const W = 1280;
 const H = 720;
 const EXTRA_BOUNDS_SIZE = 300;
-const DEBUG = true;
+const DEBUG = false;
 let PLAYSOUND = true;
 
 
@@ -50,6 +50,7 @@ class BaseScene extends Phaser.Scene {
     sound_step;
     sound_nooo;
     nooo_played;
+    sound_broom;
     cursors;
     speed;
     timeSeconds;
@@ -78,6 +79,7 @@ class BaseScene extends Phaser.Scene {
 
         this.load.audio('a_step', ['sounds/step.mp3']);
         this.load.audio('a_nooo', ['sounds/nooo.mp3']);
+        this.load.audio('a_broom', ['sounds/broom.mp3']);
         this.load.audio('a_music', ['sounds/game_music.mp3']);
 
         if (this.itemPickAndDrop === undefined) {
@@ -153,6 +155,8 @@ class BaseScene extends Phaser.Scene {
 
         this.sound_nooo = this.sound.add('a_nooo');
         this.nooo_played = false;
+
+        this.sound_broom = this.sound.add('a_broom');
 
         this.sound_music = this.sound.add('a_music');
 
@@ -244,6 +248,7 @@ class BaseScene extends Phaser.Scene {
 
         if (this.trashLeft === 0) {
             this.input.keyboard.on('keydown', this.next_scene);
+            this.sound.stopAll();
             this.timeText.text = "You've done this! Press any key...";
             return;
         }
@@ -317,7 +322,7 @@ class BaseScene extends Phaser.Scene {
         this.itemPickAndDrop.checkIfKeyboardActionHappens();
 
         this.broomHandler.active = this.itemPickAndDrop.itemOnPlaceholder === this.broomHandler.broomReference;
-        this.broomHandler.handleClick();
+        this.broomHandler.handleClick(this.sound_broom);
     }
 
     upd_time(diff) {
@@ -662,12 +667,13 @@ class BroomHandler {
         );
     }
 
-    handleClick() {
+    handleClick(sound) {
         let p = this.game.input.mousePointer;
         if (!p.rightButtonDown()) {
             this.inUse = false;
         }
         if (p.rightButtonDown() && this.active && !this.inUse) {
+            sound.play();
             this.inUse = true;
             this.act(p);
         }
