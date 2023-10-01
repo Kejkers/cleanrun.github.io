@@ -235,7 +235,7 @@ class BaseScene extends Phaser.Scene {
 
     update() {
         if (this.cursors.space.isDown) {
-            this.trashLeft = 70;
+            this.trashLeft = 90;
             this.sound.stopAll();
             this.itemPickAndDrop = new ItemPickAndDrop(this, W, H);
             this.scene.start('pre');
@@ -427,7 +427,7 @@ class PreviewComics extends Phaser.Scene {
     create ()
     {
         this.add.image(W / 2, H / 2, 'comics');
-        this.add.text(26, H * 0.85, 'Press any key to start', { color: '#ffffff' });
+        this.add.text(26, H * 0.85, 'Press any key to start', { color: '#000000' });
         this.input.keyboard.on('keydown', this.handle_key);
         this.canStart = false;
         setTimeout(this.doCanStart, 2000, this);
@@ -471,7 +471,8 @@ class WinComics extends Phaser.Scene {
     create ()
     {
         this.add.image(W / 2, H / 2, 'wincomics');
-        this.add.text(26, H * 0.85, 'Press any key', { color: '#ffffff' });
+        this.add.text(26, 79, "You've cleaned your room\njust in time.\nGood job!\nAnd thanks for playing!", { color: '#000000' });
+        this.add.text(26, H * 0.85, 'Press any key', { color: '#000000' });
         this.input.keyboard.on('keydown', this.handle_key);
         this.canStart = false;
         setTimeout(this.doCanStart, 2000, this);
