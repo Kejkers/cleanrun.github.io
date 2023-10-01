@@ -1,5 +1,7 @@
 const W = 1280;
 const H = 720;
+const EXTRA_BOUNDS_SIZE = 300;
+const DEBUG = true;
 
 
 function randomPos() {
@@ -97,25 +99,25 @@ class BaseScene extends Phaser.Scene {
         this.player.play('idle');
         this.player.lookLeft = true;
 
-        const topwall = this.matter.add.image(0, 0, 'transparent').setScale(1280, 190);
+        const topwall = this.matter.add.image(EXTRA_BOUNDS_SIZE, 0, 'transparent').setScale(W + EXTRA_BOUNDS_SIZE, 190);
 
         topwall.setBounce(1, 1);
         topwall.setStatic(true);
         topwall.setFriction(0.005);
 
-        const leftwall = this.matter.add.image(0, 0, 'transparent').setScale(1, 720);
+        const leftwall = this.matter.add.image(-EXTRA_BOUNDS_SIZE + 2, 0, 'transparent').setScale(EXTRA_BOUNDS_SIZE, H);
 
         leftwall.setBounce(1, 1);
         leftwall.setStatic(true);
         leftwall.setFriction(0.005);
 
-        const rightwall = this.matter.add.image(1278, 0, 'transparent').setScale(1, 720);
+        const rightwall = this.matter.add.image(EXTRA_BOUNDS_SIZE + W - 2, 0, 'transparent').setScale(EXTRA_BOUNDS_SIZE, H);
 
         rightwall.setBounce(1, 1);
         rightwall.setStatic(true);
         rightwall.setFriction(0.005);
 
-        const botwall = this.matter.add.image(0, 718, 'transparent').setScale(1280, 1);
+        const botwall = this.matter.add.image(-EXTRA_BOUNDS_SIZE, H + EXTRA_BOUNDS_SIZE - 2, 'transparent').setScale(W + EXTRA_BOUNDS_SIZE, EXTRA_BOUNDS_SIZE);
 
         botwall.setBounce(1, 1);
         botwall.setStatic(true);
@@ -292,7 +294,7 @@ const config = {
     physics: {
         default: 'matter',
         matter: {
-            debug: true,
+            debug: DEBUG,
             gravity: {
                 y: 0.0
             }
