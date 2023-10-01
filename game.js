@@ -209,7 +209,7 @@ class BaseScene extends Phaser.Scene {
             this.trashLeft += 1;
         }
 
-        this.add.image(W/2, 8, 'lamp');
+        this.add.image(W/3, 8, 'lamp');
     }
 
     createRubbish(xy, imageName) {
@@ -322,21 +322,23 @@ class Menu extends Phaser.Scene {
 
     preload ()
     {
+        this.load.path = "assets/";
+        this.load.image('menubg', 'bg/menu_pic.png');
     }
 
     create ()
     {
-        this.add.text(W / 11, H / 8, 'Clean.run!!!', { color: '#ffffff' });
-        this.add.text(W / 11, H / 6, 'Ludum dare 54 game', { color: '#ffffff' });
-        this.add.text(W / 11, H / 4, 'Press any key to start', { color: '#ffffff' });
-        this.add.text(W / 11, H / 2, 'Press SPACE while playing to restart game', { color: '#ffffff' });
-        this.add.text(W / 11, H / 2 + H / 6, 'Press M while playing to mute sounds', { color: '#ffffff' });
+        this.add.image(W / 2, H / 2, 'menubg');
+        this.add.text(20, 79, 'Clean.run!!!', { color: '#ffffff' });
+        this.add.text(20, H * 0.4, 'Ludum dare 54 game', { color: '#ffffff' });
+        this.add.text(20, H * 0.5, 'Press any key to start', { color: '#ffffff' });
+        this.add.text(20, H * 0.6, 'Press SPACE while playing to restart game', { color: '#ffffff' });
+        this.add.text(20, H * 0.7, 'Press M while playing to mute sounds', { color: '#ffffff' });
         this.input.keyboard.on('keydown', this.handle_key);
     }
 
     handle_key() {
-        currentScene = 'learn';
-        // currentScene = 'basescene';
+        currentScene = 'previewcomics';
         this.scene.scene.start(currentScene);
     }
 }
@@ -384,6 +386,40 @@ class Learn extends BaseScene {
     }
 }
 
+class PreviewComics extends Phaser.Scene {
+    constructor ()
+    {
+        super({ key: 'previewcomics' });
+    }
+
+    preload ()
+    {
+        this.load.path = "assets/";
+        this.load.image('comics', 'bg/startcomics.png');
+    }
+
+    create ()
+    {
+        this.add.image(W / 2, H / 2, 'comics');
+        this.add.text(26, H * 0.85, 'Press any key to start', { color: '#ffffff' });
+        this.input.keyboard.on('keydown', this.handle_key);
+        this.canStart = false;
+        setTimeout(this.doCanStart, 2000, this);
+    }
+
+    doCanStart(scene) {
+        console.log('Can start now');
+        scene.canStart = true;
+    }
+
+    handle_key() {
+        if (this.scene.canStart) {
+            currentScene = 'learn';
+            this.scene.scene.start(currentScene);
+        }
+    }
+}
+
 
 const config = {
     type: Phaser.AUTO,
@@ -402,7 +438,7 @@ const config = {
             }
         }
     },
-    scene: [PreLoader, Menu, Learn, BaseScene]
+    scene: [PreLoader, Menu, PreviewComics, Learn, BaseScene]
 };
 
 const game = new Phaser.Game(config);
