@@ -97,8 +97,7 @@ class BaseScene extends Phaser.Scene {
         this.trashLeft = (this.trashLeft === undefined)? 90 : this.trashLeft;
         this.instantiate_objects(this.trashLeft);
 
-        // this.timeSeconds = 130;
-        this.timeSeconds = 20;
+        this.timeSeconds = 130;
         this.timeText = this.add.text(W / 2, 8, 'Hurry up!', { color: '#ffffff' });
         this.add.text(50, 8, 'Press SPACE to restart', { color: '#ffffff' });
 
@@ -244,7 +243,8 @@ class BaseScene extends Phaser.Scene {
         }
 
         if (this.trashLeft === 0) {
-            this.timeText.text = "You've done this!";
+            this.input.keyboard.on('keydown', this.next_scene);
+            this.timeText.text = "You've done this! Press any key...";
             return;
         }
 
@@ -326,6 +326,11 @@ class BaseScene extends Phaser.Scene {
         let residSeconds = secondsLeft - minutesLeft * 60;
         this.timeText.text = minutesLeft.toString() + ':' + ((residSeconds < 10)? '0' : '') + residSeconds.toString();
     }
+
+    next_scene() {
+        currentScene = 'wincomics';
+        this.scene.scene.start(currentScene);
+    }
 }
 
 class Menu extends Phaser.Scene {
@@ -348,6 +353,7 @@ class Menu extends Phaser.Scene {
         this.add.text(20, H * 0.5, 'Press any key to start', { color: '#ffffff' });
         this.add.text(20, H * 0.6, 'Press SPACE while playing to restart game', { color: '#ffffff' });
         this.add.text(20, H * 0.7, 'Press M while playing to mute sounds', { color: '#ffffff' });
+        this.add.text(20, H * 0.8, 'dev: khmhmm, nekogochan\nart: dasdavs\naudio: rezultant', { color: '#ffffff' });
 
         this.sound.setVolume(50);
 
@@ -448,6 +454,49 @@ class PreviewComics extends Phaser.Scene {
 }
 
 
+class WinComics extends Phaser.Scene {
+    constructor ()
+    {
+        super({ key: 'wincomics' });
+    }
+
+    preload ()
+    {
+        this.load.path = "assets/";
+        this.load.image('wincomics', 'bg/wincomics.png');
+
+        this.load.audio('a_menu_music', ['sounds/menu_music.mp3']);
+    }
+
+    create ()
+    {
+        this.add.image(W / 2, H / 2, 'wincomics');
+        this.add.text(26, H * 0.85, 'Press any key', { color: '#ffffff' });
+        this.input.keyboard.on('keydown', this.handle_key);
+        this.canStart = false;
+        setTimeout(this.doCanStart, 2000, this);
+        this.menu_music = this.sound.add('a_menu_music');
+        setTimeout(this.playMusic, 100, this);
+    }
+
+    playMusic(scene) {
+        scene.menu_music.play();
+    }
+
+    doCanStart(scene) {
+        scene.canStart = true;
+    }
+
+    handle_key() {
+        if (this.scene.canStart) {
+            this.scene.sound.stopAll();
+            currentScene = 'menu';
+            this.scene.scene.start(currentScene);
+        }
+    }
+}
+
+
 const config = {
     type: Phaser.AUTO,
     width: W,
@@ -465,7 +514,7 @@ const config = {
             }
         }
     },
-    scene: [PreLoader, Menu, PreviewComics, Learn, BaseScene]
+    scene: [PreLoader, Menu, PreviewComics, Learn, BaseScene, WinComics]
 };
 
 const game = new Phaser.Game(config);
